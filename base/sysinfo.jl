@@ -146,35 +146,6 @@ function set_process_title(title::AbstractString)
     uv_error("set_process_title", err)
 end
 
-
-immutable UV_timeval
-    tv_sec::Clong
-    tv_usec::Clong
-end
-
-immutable UV_rusage
-    ru_utime::UV_timeval # user CPU time used
-    ru_stime::UV_timeval # system CPU time used
-    ru_maxrss::UInt64 # maximum resident set size
-    ru_ixrss::UInt64 # integral shared memory size
-    ru_idrss::UInt64 # integral unshared data size
-    ru_isrss::UInt64 # integral unshared stack size
-    ru_minflt::UInt64 # page reclaims (soft page faults)
-    ru_majflt::UInt64 # page faults (hard page faults)
-    ru_nswap::UInt64 # swaps
-    ru_inblock::UInt64 # block input operations
-    ru_oublock::UInt64 # block output operations
-    ru_msgsnd::UInt64 # IPC messages sent
-    ru_msgrcv::UInt64 # IPC messages received
-    ru_nsignals::UInt64 # signals received
-    ru_nvcsw::UInt64 # voluntary context switches
-    ru_nivcsw::UInt64 # involuntary context switches
-end
-
-function get_rusage()
-    RUsage = Array(UV_rusage,1)
-    uv_error("uv_cpu_info",ccall(:uv_getrusage, Cint, (Ptr{UV_rusage},), RUsage))
-    return RUsage[1]
-end
+maxrss() = ccall(:jl_maxrss, Csize_t, ())
 
 end # module Sys

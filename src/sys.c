@@ -742,6 +742,30 @@ DLLEXPORT jl_sym_t* jl_get_ARCH()
     return ARCH;
 }
 
+DLLEXPORT size_t jl_maxrss()
+{
+#if defined(_OS_WINDOWS_)
+	PROCESS_MEMORY_COUNTERS counter;
+	GetProcessMemoryInfo( GetCurrentProcess( ), &counter, sizeof(counter) );
+	return (size_t)counter.PeakWorkingSetSize;
+
+#elif defined(_OS_LINUX_) || defined(_OS_DARWIN_)
+	struct rusage rusage;
+	getrusage( RUSAGE_SELF, &rusage );
+
+#if defined(_OS_LINUX_)
+	return (size_t)(rusage.ru_maxrss * 1024);
+#else
+	return (size_t)rusage.ru_maxrss;
+#endif
+
+#else
+	return (size_t)0;
+#endif
+}
+
+
+
 #ifdef __cplusplus
 }
 #endif

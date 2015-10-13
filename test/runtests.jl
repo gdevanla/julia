@@ -26,7 +26,7 @@ cd(dirname(@__FILE__)) do
             @async begin
                 while length(tests) > 0
                     test = shift!(tests)
-                    resp = remotecall_fetch(t -> (runtests(t); Sys.get_rusage().ru_maxrss), p, test)
+                    resp = remotecall_fetch(t -> (runtests(t); Sys.maxrss()), p, test)
 
                     if isa(resp, Integer)
                         if resp > max_worker_rss * 2^20
