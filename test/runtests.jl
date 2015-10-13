@@ -20,7 +20,29 @@ cd(dirname(@__FILE__)) do
 
     @everywhere include("testdefs.jl")
 
-    reduce(propagate_errors, nothing, pmap(runtests, tests; err_retry=false, err_stop=true))
+    const max_worker_rss = parse(Int, get(ENV, "JULIA_TEST_MAXRSS_MB", "200"))
+    @sync begin
+        for p in workers()
+            @async begin
+                while length(tests) > 0
+                    test = shift!(tests)
+                    resp = remotecall_fetch(t -> (runtests(t); Sys.get_rusage().ru_maxrss), p, test)
+
+                    if isa(resp, Integer)
+                        if resp > max_worker_rss * 2^20
+                            rmprocs(p, waitfor=0.5)
+                            p = addprocs(1; exeflags=`--check-bounds=yes --depwarn=error`)[1]
+                            remotecall_fetch(()->include("testdefs.jl"), p)
+                        end
+                    elseif isa(resp, Exception)
+                        rethrow(resp)
+                    else
+                        error("Unknown error $resp while executing test $test")
+                    end
+                end
+            end
+        end
+    end
 
     if compile_test
         n > 1 && print("\tFrom worker 1:\t")
