@@ -10,7 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#ifndef _OS_WINDOWS_
+#ifdef _OS_WINDOWS_
+#include <psapi.h>
+#else
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
