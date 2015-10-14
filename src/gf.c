@@ -1541,7 +1541,23 @@ static void precompile_unspecialized(jl_function_t *func, jl_tupletype_t *sig, j
     jl_trampoline_compile_function(func, 1, sig);
 }
 
-static int tupletype_any_bottom(jl_value_t *sig) {
+static void jl_trampoline_compile_cache(jl_array_t **pa)
+{
+    jl_array_t *a = *pa;
+    if ((jl_value_t*)a == jl_nothing)
+        return;
+    size_t i, l = jl_array_len(a);
+    for (i = 0; i < l; i++) {
+        jl_methlist_t *m = (jl_methlist_t*)jl_cellref(a, i);
+        if (m && (jl_value_t*)m != jl_nothing && m->func != jl_bottom_func && m->func->fptr == &jl_trampoline)
+            jl_trampoline_compile_function(m->func, 1, m->sig);
+        if (*pa != a)
+            return jl_trampoline_compile_cache(pa); // cache changed, restart
+    }
+}
+
+static int tupletype_any_bottom(jl_value_t *sig)
+{
     jl_svec_t *types = ((jl_tupletype_t*)sig)->types;
     size_t i, l = jl_svec_len(types);
     for (i = 0; i < l; i++) {
@@ -1617,6 +1633,19 @@ void jl_compile_all_defs(jl_function_t *gf)
         precompile_unspecialized(func, m->sig, m->tvars);
         m = m->next;
     }
+
+    // make sure everything in the cache has a fptr assigned
+    m = mt->cache;
+    while (m != (void*)jl_nothing) {
+        func = m->func;
+        if (func != jl_bottom_func && func->fptr != &jl_trampoline)
+            jl_trampoline_compile_function(func, 1, m->sig);
+        m = m->next;
+        continue;
+    }
+    jl_trampoline_compile_cache(&mt->cache_arg1);
+    jl_trampoline_compile_cache(&mt->cache_targ);
+
     JL_GC_POP();
 }
 
